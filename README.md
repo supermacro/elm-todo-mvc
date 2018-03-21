@@ -6,6 +6,11 @@ The current version in TodoMVC uses Elm v0.17. So I thought I'd practice elm and
 
 Using my [Elm boilerplate](https://github.com/gDelgado14/elm-boilerplate)!
 
+## TODO
+- Add undo keyboard shortcut
+- Allow todo's to be draggable & reorderable
+
+
 ## Requirements
 
 - [NodeJS](https://nodejs.org/en/)
