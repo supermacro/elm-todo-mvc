@@ -1,8 +1,8 @@
 module Main exposing (..)
 
-import Html exposing (Html, text, div, h1, ul, li, input, Attribute)
-import Html.Attributes exposing (type_, placeholder)
-import Html.Events exposing (on, keyCode, onInput)
+import Html exposing (Html, text, div, h1, ul, li, input, label, button, Attribute)
+import Html.Attributes exposing (class, type_, placeholder, value)
+import Html.Events exposing (on, keyCode, onInput, onClick)
 import Json.Decode as Json
 
 
@@ -20,7 +20,7 @@ main =
 -- MODEL
 type alias Model =
     { todos : List String
-    , input : String
+    , userInput : String
     }
 
 
@@ -30,6 +30,7 @@ type alias Model =
 type Msg
     = KeyDown Int
     | Input String
+    | Remove String
 
 
 
@@ -58,7 +59,7 @@ onKeyDown =
 
 view : Model -> Html Msg
 view model =
-  div [ ]
+  div [ class "todo-list-container" ]
     [ h1 [] [ text "todos" ]
     , todoForm model
     ]
@@ -67,42 +68,45 @@ view model =
 
 todoForm : Model -> Html Msg
 todoForm model =
-  div []
-    [ todoHeader
+  div [ class "form" ]
+    [ todoHeader model
     , todoList model
     ]
 
 
-todoHeader : Html Msg
-todoHeader =
-  div []
-    [ input [ type_ "checkbox" ] []
+todoHeader : Model -> Html Msg
+todoHeader { userInput } =
+  div [ class "todo-header" ]
+    [ input [ class "toggle-all", type_ "checkbox" ] []
     , input
-      [ type_ "text"
+      [ class "user-input"
+      , type_ "text"
       , placeholder "What needs to be done?"
       , onKeyDown
       , onInput Input
+      , value userInput
       ] []
     ]
 
 
-todoList : Model -> Html a
+todoList : Model -> Html Msg
 todoList { todos } =
-  let
-    listItems =
-      if List.isEmpty todos then
-        div [] []
-      else
-        let
-          toListItem todo =
-            li [] [text todo]
+  if List.isEmpty todos then
+    div [] []
 
-          list = List.map toListItem todos
-        in
-          ul [] list
+  else
+    let
+      toListItem todo =
+        li [ class "list-item" ]
+          [ input [ class "checkbox", type_ "checkbox" ] []
+          , label [] [ text todo ]
+          , button [ class "remove-todo", onClick (Remove todo) ] []
+          ]
 
-  in
-    div [] [ listItems ]
+      list = List.map toListItem todos
+    in
+      ul [] list
+
 
 
 -- UPDATE
@@ -113,22 +117,29 @@ update msg model =
   case msg of
     KeyDown int ->
       let
-        enter = 13
+        enterKey = 13
       in
-        if int == enter then
+        if int == enterKey then
           (addTodo model, Cmd.none)
         else
           (model, Cmd.none)
 
     Input str ->
-      ({ model | input = str }, Cmd.none)
+      ({ model | userInput = str }, Cmd.none)
+
+    Remove todo ->
+      let
+        filteredTodos = List.filter ((/=) todo) model.todos
+      in
+        ({ model | todos = filteredTodos }, Cmd.none)
+
 
 
 addTodo : Model -> Model
 addTodo model =
   let
-    newTodos = Debug.log "TODO" (model.input :: model.todos)
+    newTodos = Debug.log "TODO" (model.userInput :: model.todos)
 
   in
-    { model | todos = newTodos }
+    { model | todos = newTodos, userInput = "" }
 
