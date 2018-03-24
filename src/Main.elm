@@ -1,8 +1,8 @@
 module Main exposing (..)
 
 import Html exposing (Html, text, div, h1, ul, li, input, label, button, Attribute)
-import Html.Attributes exposing (class, type_, placeholder, value)
-import Html.Events exposing (on, keyCode, onInput, onClick)
+import Html.Attributes exposing (class, type_, placeholder, value, checked)
+import Html.Events exposing (on, keyCode, onInput, onClick, onCheck)
 import Json.Decode as Json
 
 
@@ -18,8 +18,14 @@ main =
 
 
 -- MODEL
+type alias Todo =
+  { completed: Bool
+  , content: String
+  , id: Int
+  }
+
 type alias Model =
-    { todos : List String
+    { todos : List Todo
     , userInput : String
     }
 
@@ -30,7 +36,9 @@ type alias Model =
 type Msg
     = KeyDown Int
     | Input String
-    | Remove String
+    | Remove Int
+    | Toggle Int
+    | ToggleAll
 
 
 
@@ -75,18 +83,23 @@ todoForm model =
 
 
 todoHeader : Model -> Html Msg
-todoHeader { userInput } =
-  div [ class "todo-header" ]
-    [ input [ class "toggle-all", type_ "checkbox" ] []
-    , input
-      [ class "user-input"
-      , type_ "text"
-      , placeholder "What needs to be done?"
-      , onKeyDown
-      , onInput Input
-      , value userInput
-      ] []
-    ]
+todoHeader { userInput, todos } =
+  let
+    allChecked = not <| List.member False <| List.map (\todo -> todo.completed) todos
+
+    toggleAll = (\_ -> ToggleAll)
+  in
+    div [ class "todo-header" ]
+      [ input [ class "toggle-all", checked allChecked, onCheck toggleAll, type_ "checkbox" ] []
+      , input
+        [ class "user-input"
+        , type_ "text"
+        , placeholder "What needs to be done?"
+        , onKeyDown
+        , onInput Input
+        , value userInput
+        ] []
+      ]
 
 
 todoList : Model -> Html Msg
@@ -98,14 +111,32 @@ todoList { todos } =
     let
       toListItem todo =
         li [ class "list-item" ]
-          [ input [ class "checkbox", type_ "checkbox" ] []
-          , label [] [ text todo ]
-          , button [ class "remove-todo", onClick (Remove todo) ] []
+          [ input [ class "checkbox", type_ "checkbox", checked todo.completed, onCheck (\_ -> Toggle todo.id) ] []
+          , label [] [ text todo.content ]
+          , button [ class "remove-todo", onClick (Remove todo.id) ] []
           ]
 
+      footer =
+        let
+          count = List.length <| List.filter (\todo -> not todo.completed) todos
+
+          footerMsg =
+            if count == 1 then
+              (toString count) ++ " item left"
+            else
+              (toString count) ++ " items left"
+
+        in
+          div [] [ text footerMsg ]
+
       list = List.map toListItem todos
+
     in
-      ul [] list
+      div []
+        [ ul [] list
+        , footer
+        ]
+
 
 
 
@@ -127,18 +158,44 @@ update msg model =
     Input str ->
       ({ model | userInput = str }, Cmd.none)
 
-    Remove todo ->
+    Remove todoId ->
       let
-        filteredTodos = List.filter ((/=) todo) model.todos
+        filteredTodos = List.filter (\todo -> todo.id /= todoId) model.todos
       in
         ({ model | todos = filteredTodos }, Cmd.none)
+
+    Toggle todoId ->
+      let
+        updatedTodos =
+          (flip List.map) model.todos
+            (\todo ->
+              if todo.id == todoId then
+                { todo | completed = not todo.completed }
+              else
+                todo)
+      in
+        ({ model | todos = updatedTodos }, Cmd.none)
+
+
+    ToggleAll ->
+      let
+        allToggled =
+          List.map (\todo -> { todo | completed = not todo.completed }) model.todos
+      in
+        ({ model | todos = allToggled }, Cmd.none)
 
 
 
 addTodo : Model -> Model
 addTodo model =
   let
-    newTodos = Debug.log "TODO" (model.userInput :: model.todos)
+    newTodo =
+      { completed = False
+      , content = model.userInput
+      , id = (List.length model.todos) + 1
+      }
+
+    newTodos = Debug.log "TODO" (newTodo :: model.todos)
 
   in
     { model | todos = newTodos, userInput = "" }
