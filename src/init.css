@@ -50,6 +50,7 @@ body, #app {
 
 .todo-header .user-input {
   border: none;
+  width: 90%;
 }
 
 .todo-header .toggle-all {
