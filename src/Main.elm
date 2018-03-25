@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Html exposing (Html, text, div, h1, ul, li, input, label, button, Attribute)
 import Html.Attributes exposing (class, type_, placeholder, value, checked)
@@ -7,7 +7,7 @@ import Json.Decode as Json
 
 
 main =
-  Html.program
+  Html.programWithFlags
     { init = init
     , view = view
     , update = update
@@ -38,6 +38,19 @@ type alias Model =
 
 
 
+
+-- PORTS
+
+-- save to local storage
+port saveTodo : Todo -> Cmd msg
+
+-- remove from local storage
+type alias TodoId = Int
+port removeTodo : TodoId -> Cmd msg
+
+
+
+
 -- MSG
 
 type Msg
@@ -51,27 +64,23 @@ type Msg
 
 
 
--- INIT
-
--- js interop
--- type alias Flags =
---   { user : String
---   , token : String
---   }
-
--- init : Flags -> ( Model, Cmd Msg )
-
-initialModel : Model
-initialModel = Model [] "" All
-
-init : (Model, Cmd Msg)
-init = (initialModel, Cmd.none)
 
 
 
-onKeyDown : Attribute Msg
-onKeyDown =
-    on "keydown" (Json.map KeyDown keyCode)
+
+type alias Flags =
+  { todos : List Todo }
+
+init : Flags -> (Model, Cmd Msg)
+init flags =
+  let
+    initialModel =
+      { todos = flags.todos
+      , userInput = ""
+      , visibility = All}
+  in
+  (initialModel, Cmd.none)
+
 
 
 -- VIEW
@@ -231,7 +240,7 @@ update msg model =
         enterKey = 13
       in
         if int == enterKey && not (String.isEmpty model.userInput) then
-          (addTodo model, Cmd.none)
+          addTodo model
         else
           (model, Cmd.none)
 
@@ -244,7 +253,7 @@ update msg model =
       let
         filteredTodos = List.filter (\todo -> todo.id /= todoId) model.todos
       in
-        ({ model | todos = filteredTodos }, Cmd.none)
+        ({ model | todos = filteredTodos }, removeTodo todoId)
 
 
 
@@ -290,7 +299,7 @@ update msg model =
 
 
 
-addTodo : Model -> Model
+addTodo : Model -> (Model, Cmd msg)
 addTodo model =
   let
     newTodo =
@@ -302,7 +311,7 @@ addTodo model =
     newTodos = Debug.log "TODO" (newTodo :: model.todos)
 
   in
-    { model | todos = newTodos, userInput = "" }
+    ({ model | todos = newTodos, userInput = "" }, saveTodo newTodo)
 
 
 
@@ -314,3 +323,10 @@ addTodo model =
 -- UTILS
 allCompleted : List Todo -> Bool
 allCompleted = not << List.member False << List.map (\todo -> todo.completed)
+
+
+
+onKeyDown : Attribute Msg
+onKeyDown =
+    on "keydown" (Json.map KeyDown keyCode)
+
