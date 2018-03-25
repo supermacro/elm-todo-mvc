@@ -4,7 +4,9 @@ import Html exposing (Html, text, div, h1, ul, li, input, label, button, Attribu
 import Html.Attributes exposing (class, type_, placeholder, value, checked)
 import Html.Events exposing (on, keyCode, onInput, onClick, onCheck)
 import Json.Decode as Json
-
+import Time exposing (Time)
+import Task
+import Random exposing (step, int)
 
 main =
   Html.programWithFlags
@@ -61,6 +63,10 @@ type Msg
     | ToggleAll
     | SetVisibility Visibilty
     | RemoveCompleted
+    | NewTodo String Time
+
+
+
 
 
 
@@ -296,23 +302,29 @@ update msg model =
         ({ model | todos = uncompleted }, Cmd.none)
 
 
+    NewTodo todoContent time ->
+      let
+        secs = round <| Time.inSeconds time
+        seed = Random.initialSeed secs
+        (uniqueId, _) = step (int 1 5000) seed
+
+        newTodo =
+          { content = todoContent
+          , completed = False
+          , id = uniqueId
+          }
+
+        newTodos = newTodo :: model.todos
+
+      in
+        ({ model | todos = newTodos, userInput = "" }, saveTodo newTodo)
 
 
 
-addTodo : Model -> (Model, Cmd msg)
+
+addTodo : Model -> (Model, Cmd Msg)
 addTodo model =
-  let
-    newTodo =
-      { completed = False
-      , content = model.userInput
-      , id = (List.length model.todos) + 1
-      }
-
-    newTodos = Debug.log "TODO" (newTodo :: model.todos)
-
-  in
-    ({ model | todos = newTodos, userInput = "" }, saveTodo newTodo)
-
+  ({ model | userInput = "" }, Task.perform (NewTodo model.userInput) Time.now)
 
 
 
