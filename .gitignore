@@ -1,6 +1,8 @@
 
 # Created by https://www.gitignore.io/api/elm,node,macos
 
+dist/
+
 ### Elm ###
 # elm-package generated files
 elm-stuff
