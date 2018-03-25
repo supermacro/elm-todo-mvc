@@ -24,9 +24,16 @@ type alias Todo =
   , id: Int
   }
 
+type Visibilty
+  = All
+  | Active
+  | Completed
+
+
 type alias Model =
     { todos : List Todo
     , userInput : String
+    , visibility: Visibilty
     }
 
 
@@ -39,6 +46,8 @@ type Msg
     | Remove Int
     | Toggle Int
     | ToggleAll
+    | SetVisibility Visibilty
+    | RemoveCompleted
 
 
 
@@ -52,8 +61,11 @@ type Msg
 
 -- init : Flags -> ( Model, Cmd Msg )
 
+initialModel : Model
+initialModel = Model [] "" All
+
 init : (Model, Cmd Msg)
-init = (Model [] "", Cmd.none)
+init = (initialModel, Cmd.none)
 
 
 
@@ -85,12 +97,19 @@ todoForm model =
 todoHeader : Model -> Html Msg
 todoHeader { userInput, todos } =
   let
-    allChecked = not <| List.member False <| List.map (\todo -> todo.completed) todos
+    shouldCheck = not <| allCompleted todos
+
+    toggleAllClass =
+      if List.isEmpty todos then
+        class "toggle-all hide-toggle"
+      else
+        class "toggle-all"
+
 
     toggleAll = (\_ -> ToggleAll)
   in
     div [ class "todo-header" ]
-      [ input [ class "toggle-all", checked allChecked, onCheck toggleAll, type_ "checkbox" ] []
+      [ input [ toggleAllClass, checked shouldCheck, onCheck toggleAll, type_ "checkbox" ] []
       , input
         [ class "user-input"
         , type_ "text"
@@ -103,39 +122,102 @@ todoHeader { userInput, todos } =
 
 
 todoList : Model -> Html Msg
-todoList { todos } =
+todoList { todos, visibility } =
   if List.isEmpty todos then
     div [] []
 
   else
     let
       toListItem todo =
-        li [ class "list-item" ]
-          [ input [ class "checkbox", type_ "checkbox", checked todo.completed, onCheck (\_ -> Toggle todo.id) ] []
-          , label [] [ text todo.content ]
-          , button [ class "remove-todo", onClick (Remove todo.id) ] []
-          ]
-
-      footer =
         let
-          count = List.length <| List.filter (\todo -> not todo.completed) todos
-
-          footerMsg =
-            if count == 1 then
-              (toString count) ++ " item left"
+          labelClass = class
+            (if todo.completed then
+              "completed"
             else
-              (toString count) ++ " items left"
-
+              "")
         in
-          div [] [ text footerMsg ]
+          li [ class "list-item" ]
+            [ input [ class "checkbox", type_ "checkbox", checked todo.completed, onCheck (\_ -> Toggle todo.id) ] []
+            , label [ labelClass ] [ text todo.content ]
+            , button [ class "remove-todo", onClick (Remove todo.id) ] []
+            ]
 
-      list = List.map toListItem todos
+      filterFunc =
+        case visibility of
+          All ->
+            (\_ -> True)
+          Active ->
+            (\todo -> not todo.completed)
+          Completed ->
+            (\todo -> todo.completed)
+
+      list =
+        List.filter filterFunc todos
+        |> List.map toListItem
 
     in
       div []
         [ ul [] list
-        , footer
+        , todoListFooter todos visibility
         ]
+
+
+
+todoListFooter : List Todo -> Visibilty -> Html Msg
+todoListFooter todos currentVisibility =
+  let
+    count = List.length <| List.filter (\todo -> not todo.completed) todos
+    footerMsg =
+      if count == 1 then
+        (toString count) ++ " item left"
+      else
+        (toString count) ++ " items left"
+
+
+    visibilityOptions =
+      let
+        btn =
+          visibilityButton currentVisibility
+      in
+        div [ class "visibility-options" ]
+          [ btn All
+          , btn Active
+          , btn Completed
+          ]
+
+
+    clearAllBtn =
+      let
+        clearBtnClass =
+          if allCompleted todos then
+            "clear-completed hide"
+          else
+            "clear-completed"
+      in
+        button [ class clearBtnClass, onClick RemoveCompleted ] [ text "Clear completed" ]
+
+  in
+    div [ class "todo-footer" ]
+      [ div [ class "count-message" ] [ text footerMsg ]
+      , visibilityOptions
+      , clearAllBtn
+      ]
+
+
+
+visibilityButton : Visibilty -> Visibilty -> Html Msg
+visibilityButton currentViz viz =
+  let
+    buttonClass = if currentViz == viz then
+      class "viz-button active"
+    else
+      class "viz-button"
+  in
+    button [ buttonClass, onClick (SetVisibility viz) ] [ text (toString viz) ]
+
+
+
+
 
 
 
@@ -150,19 +232,23 @@ update msg model =
       let
         enterKey = 13
       in
-        if int == enterKey then
+        if int == enterKey && not (String.isEmpty model.userInput) then
           (addTodo model, Cmd.none)
         else
           (model, Cmd.none)
 
+
     Input str ->
       ({ model | userInput = str }, Cmd.none)
+
 
     Remove todoId ->
       let
         filteredTodos = List.filter (\todo -> todo.id /= todoId) model.todos
       in
         ({ model | todos = filteredTodos }, Cmd.none)
+
+
 
     Toggle todoId ->
       let
@@ -179,10 +265,32 @@ update msg model =
 
     ToggleAll ->
       let
-        allToggled =
-          List.map (\todo -> { todo | completed = not todo.completed }) model.todos
+        allComplete = not <| allCompleted model.todos
+
+        toggled =
+          if allComplete then
+            List.map (\todo -> { todo | completed = False }) model.todos
+          else
+
+          (flip List.map)
+            model.todos
+            (\todo ->
+              { todo | completed = if todo.completed then todo.completed else not todo.completed })
       in
-        ({ model | todos = allToggled }, Cmd.none)
+        ({ model | todos = toggled }, Cmd.none)
+
+
+    SetVisibility viz ->
+      ({ model | visibility = viz }, Cmd.none)
+
+    RemoveCompleted ->
+      let
+        uncompleted =
+          List.filter (\todo -> not todo.completed) model.todos
+      in
+        ({ model | todos = uncompleted }, Cmd.none)
+
+
 
 
 
@@ -200,3 +308,13 @@ addTodo model =
   in
     { model | todos = newTodos, userInput = "" }
 
+
+
+
+
+
+
+
+-- UTILS
+allCompleted : List Todo -> Bool
+allCompleted = not << List.member True << List.map (\todo -> todo.completed)
