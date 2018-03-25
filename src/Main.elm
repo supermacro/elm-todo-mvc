@@ -317,7 +317,7 @@ update msg model =
         newTodos = newTodo :: model.todos
 
       in
-        ({ model | todos = newTodos, userInput = "" }, saveTodo newTodo)
+        ({ model | todos = newTodos }, saveTodo newTodo)
 
 
 
