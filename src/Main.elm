@@ -97,8 +97,6 @@ todoForm model =
 todoHeader : Model -> Html Msg
 todoHeader { userInput, todos } =
   let
-    shouldCheck = not <| allCompleted todos
-
     toggleAllClass =
       if List.isEmpty todos then
         class "toggle-all hide-toggle"
@@ -109,7 +107,7 @@ todoHeader { userInput, todos } =
     toggleAll = (\_ -> ToggleAll)
   in
     div [ class "todo-header" ]
-      [ input [ toggleAllClass, checked shouldCheck, onCheck toggleAll, type_ "checkbox" ] []
+      [ input [ toggleAllClass, checked (allCompleted todos), onCheck toggleAll, type_ "checkbox" ] []
       , input
         [ class "user-input"
         , type_ "text"
@@ -189,10 +187,10 @@ todoListFooter todos currentVisibility =
     clearAllBtn =
       let
         clearBtnClass =
-          if allCompleted todos then
-            "clear-completed hide"
-          else
+          if List.member True <| List.map (\todo -> todo.completed) todos then
             "clear-completed"
+          else
+            "clear-completed hide"
       in
         button [ class clearBtnClass, onClick RemoveCompleted ] [ text "Clear completed" ]
 
@@ -265,10 +263,8 @@ update msg model =
 
     ToggleAll ->
       let
-        allComplete = not <| allCompleted model.todos
-
         toggled =
-          if allComplete then
+          if allCompleted model.todos then
             List.map (\todo -> { todo | completed = False }) model.todos
           else
 
@@ -317,4 +313,4 @@ addTodo model =
 
 -- UTILS
 allCompleted : List Todo -> Bool
-allCompleted = not << List.member True << List.map (\todo -> todo.completed)
+allCompleted = not << List.member False << List.map (\todo -> todo.completed)
