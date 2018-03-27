@@ -335,7 +335,7 @@ addTodo model =
 
 -- UTILS
 allCompleted : List Todo -> Bool
-allCompleted = not << List.member False << List.map (\todo -> todo.completed)
+allCompleted = List.all .completed
 
 
 
