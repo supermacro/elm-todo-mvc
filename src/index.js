@@ -37,3 +37,7 @@ app.ports.removeTodo.subscribe((todoId) => {
 
   localStorage.setItem('todos', JSON.stringify(updatedTodos))
 })
+
+app.ports.updateTodos.subscribe((todos) => {
+  localStorage.setItem('todos', JSON.stringify(todos))
+})

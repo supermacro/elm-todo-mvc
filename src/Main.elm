@@ -50,6 +50,7 @@ port saveTodo : Todo -> Cmd msg
 type alias TodoId = Int
 port removeTodo : TodoId -> Cmd msg
 
+port updateTodos : List Todo -> Cmd msg
 
 
 
@@ -299,7 +300,7 @@ update msg model =
         uncompleted =
           List.filter (\todo -> not todo.completed) model.todos
       in
-        ({ model | todos = uncompleted }, Cmd.none)
+        ({ model | todos = uncompleted }, updateTodos uncompleted)
 
 
     NewTodo todoContent time ->
