@@ -4,9 +4,7 @@ import Html exposing (Html, text, div, h1, ul, li, input, label, button, Attribu
 import Html.Attributes exposing (class, type_, placeholder, value, checked)
 import Html.Events exposing (on, keyCode, onInput, onClick, onCheck)
 import Json.Decode as Json
-import Time exposing (Time)
-import Task
-import Random exposing (step, int)
+
 
 main =
   Html.programWithFlags
@@ -23,8 +21,8 @@ main =
 type alias Todo =
   { completed: Bool
   , content: String
-  , id: Int
   }
+
 
 type Visibilty
   = All
@@ -64,7 +62,6 @@ type Msg
     | ToggleAll
     | SetVisibility Visibilty
     | RemoveCompleted
-    | NewTodo String Time
 
 
 
@@ -142,7 +139,7 @@ todoList { todos, visibility } =
 
   else
     let
-      toListItem todo =
+      toListItem (index, todo) =
         let
           labelClass = class
             (if todo.completed then
@@ -151,9 +148,9 @@ todoList { todos, visibility } =
               "")
         in
           li [ class "list-item" ]
-            [ input [ class "checkbox", type_ "checkbox", checked todo.completed, onCheck (\_ -> Toggle todo.id) ] []
+            [ input [ class "checkbox", type_ "checkbox", checked todo.completed, onCheck (\_ -> Toggle index) ] []
             , label [ labelClass ] [ text todo.content ]
-            , button [ class "remove-todo", onClick (Remove todo.id) ] []
+            , button [ class "remove-todo", onClick (Remove index) ] []
             ]
 
       filterFunc =
@@ -167,6 +164,7 @@ todoList { todos, visibility } =
 
       list =
         List.filter filterFunc todos
+        |> List.indexedMap (\i todo -> (i, todo))
         |> List.map toListItem
 
     in
@@ -258,7 +256,10 @@ update msg model =
 
     Remove todoId ->
       let
-        filteredTodos = List.filter (\todo -> todo.id /= todoId) model.todos
+        filteredTodos =
+          List.indexedMap (,) model.todos
+          |> List.filter (\(i, _) -> i /= todoId)
+          |> List.map (\(_, todo) -> todo)
       in
         ({ model | todos = filteredTodos }, removeTodo todoId)
 
@@ -267,12 +268,9 @@ update msg model =
     Toggle todoId ->
       let
         updatedTodos =
-          (flip List.map) model.todos
-            (\todo ->
-              if todo.id == todoId then
-                { todo | completed = not todo.completed }
-              else
-                todo)
+          List.indexedMap (,) model.todos
+          |> List.map (\(i, todo) -> if i == todoId then { todo | completed = not todo.completed } else todo)
+
       in
         ({ model | todos = updatedTodos }, Cmd.none)
 
@@ -295,6 +293,7 @@ update msg model =
     SetVisibility viz ->
       ({ model | visibility = viz }, Cmd.none)
 
+
     RemoveCompleted ->
       let
         uncompleted =
@@ -303,29 +302,18 @@ update msg model =
         ({ model | todos = uncompleted }, updateTodos uncompleted)
 
 
-    NewTodo todoContent time ->
-      let
-        secs = round <| Time.inSeconds time
-        seed = Random.initialSeed secs
-        (uniqueId, _) = step (int 1 5000) seed
-
-        newTodo =
-          { content = todoContent
-          , completed = False
-          , id = uniqueId
-          }
-
-        newTodos = newTodo :: model.todos
-
-      in
-        ({ model | todos = newTodos }, saveTodo newTodo)
-
-
-
 
 addTodo : Model -> (Model, Cmd Msg)
 addTodo model =
-  ({ model | userInput = "" }, Task.perform (NewTodo model.userInput) Time.now)
+  let
+    newTodo =
+      { content = model.userInput
+      , completed = False
+      }
+
+    newTodos = newTodo :: model.todos
+  in
+    ({ model | userInput = "", todos = newTodos }, saveTodo newTodo)
 
 
 
